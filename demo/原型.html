@@ -1139,6 +1139,42 @@
 
     /* Club card images */
     img.rounded-xl { object-fit: cover; }
+
+    /* ===== Dify 气泡助手容器(定位在手机内部) ===== */
+    #dify-anchor {
+      position: absolute;
+      bottom: 84px;
+      right: 16px;
+      width: 52px;
+      height: 52px;
+      z-index: 9999;
+      display: none;
+    }
+    #dify-anchor.visible {
+      display: block;
+    }
+    #dify-anchor #dify-chatbot-bubble-button {
+      position: absolute !important;
+      bottom: 0 !important;
+      right: 0 !important;
+      left: auto !important;
+      top: auto !important;
+      margin: 0 !important;
+      width: 52px !important;
+      height: 52px !important;
+    }
+    #dify-anchor #dify-chatbot-bubble-window {
+      position: absolute !important;
+      bottom: 60px !important;
+      right: 0 !important;
+      left: auto !important;
+      top: auto !important;
+      margin: 0 !important;
+      width: 320px !important;
+      max-width: 320px !important;
+      max-height: 500px !important;
+      transform-origin: bottom right !important;
+    }
   </style>
 </head>
 <body>
@@ -1713,6 +1749,9 @@
       <div id="category-list" class="space-y-3"></div>
     </div>
   </div>
+
+  <!-- Dify 气泡助手定位锚点 -->
+  <div id="dify-anchor"></div>
 
 </div>
 
@@ -2293,6 +2332,8 @@ function showPage(pageId) {
     target.classList.add('fade-in');
     if (pageId === 'create-club') initCreateClubPage();
   }
+  // Dify 气泡只在学生页面显示
+  toggleDifyChatbot(pageId === 'student');
 }
 
 function showToast(msg, duration = 2000) {
@@ -4562,6 +4603,50 @@ document.addEventListener('click', (e) => {
 });
 
 // ============================================================
+// DIFY CHATBOT
+// ============================================================
+function initDifyChatbot() {
+  const anchor = document.getElementById('dify-anchor');
+  if (!anchor) return;
+
+  // 拦截 Dify 的 expand 消息，防止聊天窗口扩大后溢出手机外框
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'dify-chatbot-expand-change') {
+      e.stopImmediatePropagation();
+    }
+  }, true);
+
+  // 等待 Dify 脚本创建按钮和窗口元素，然后移动到手机内部锚点
+  let tries = 0;
+  const interval = setInterval(() => {
+    const btn = document.getElementById('dify-chatbot-bubble-button');
+    const win = document.getElementById('dify-chatbot-bubble-window');
+    if (btn && win) {
+      clearInterval(interval);
+      anchor.appendChild(btn);
+      anchor.appendChild(win);
+      // 强制覆盖按钮样式（Dify 内部脚本的 !important 可能覆盖外部 CSS）
+      btn.style.setProperty('background', 'linear-gradient(135deg, #7c3aed, #a78bfa)', 'important');
+      btn.style.setProperty('background-color', '#7c3aed', 'important');
+      btn.style.setProperty('border-radius', '26px', 'important');
+      btn.style.setProperty('box-shadow', '0 6px 20px rgba(124, 58, 237, 0.35)', 'important');
+      // 强制约束聊天窗口尺寸，防止 expand 溢出
+      win.style.setProperty('max-width', '320px', 'important');
+      win.style.setProperty('width', '320px', 'important');
+      win.style.setProperty('max-height', '500px', 'important');
+      win.style.setProperty('height', '500px', 'important');
+      win.style.setProperty('border-radius', '20px', 'important');
+    }
+    if (++tries > 50) clearInterval(interval);
+  }, 200);
+}
+
+function toggleDifyChatbot(visible) {
+  const anchor = document.getElementById('dify-anchor');
+  if (anchor) anchor.classList.toggle('visible', visible);
+}
+
+// ============================================================
 // LOGIN LOGIC
 // ============================================================
 function goToLogin(role) {
@@ -4597,6 +4682,7 @@ function handleLogin() {
     } else {
       store.currentUser = '张小明';
       showPage('student'); switchStudentTab('home');
+      toggleDifyChatbot(true);
     }
   }, 600);
 }
@@ -4624,7 +4710,46 @@ document.addEventListener('DOMContentLoaded', () => {
   syncAllClubEnrolledCounts();
   showPage('identity');
   lucide.createIcons();
+  initDifyChatbot();
 });
 </script>
+
+<!-- ========== Dify 社团问答助手 ========== -->
+<!--
+  ⚠️ 【重要】GitHub 上传前请替换以下 YOUR_DIFY_TOKEN 为你自己的 Dify 嵌入 Token！
+  获取方式：Dify 控制台 → 你的应用 → 『嵌入分享』→ 复制嵌入代码中的 token
+  建议同时在 Dify 后台设置「域名白名单」，限制只有你的域名可以调用，避免 Token 被滥用。
+  本 Demo 当前使用的是作者演示 Token，不保证长期可用。
+-->
+<script>
+  window.difyChatbotConfig = {
+    token: 'YOUR_DIFY_TOKEN',  // ← 替换这里！示例：'JgBQ5BQ9Ii9H3gmc'
+    inputs: {},
+    systemVariables: {},
+    userVariables: {},
+  };
+</script>
+<script src="https://udify.app/embed.min.js" id="YOUR_DIFY_TOKEN" defer></script>
+<style>
+  #dify-chatbot-bubble-button {
+    background: linear-gradient(135deg, #7c3aed, #a78bfa) !important;
+    background-color: #7c3aed !important;
+    border-radius: 26px !important;
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35) !important;
+  }
+  #dify-chatbot-bubble-button:hover {
+    background: linear-gradient(135deg, #6d28d9, #8b5cf6) !important;
+  }
+  #dify-chatbot-bubble-window {
+    width: 320px !important;
+    max-width: 320px !important;
+    min-width: 320px !important;
+    height: 500px !important;
+    max-height: 500px !important;
+    min-height: 500px !important;
+    border-radius: 20px !important;
+    box-shadow: 0 20px 50px rgba(76, 29, 149, 0.25) !important;
+  }
+</style>
 </body>
 </html>
